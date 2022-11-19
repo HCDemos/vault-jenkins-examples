@@ -1,0 +1,23 @@
+def secrets = [
+  [path: 'kv-v2/jenkinsnew/github', engineVersion: 1, secretValues: [
+    [envVar: 'PRIVATE_TOKEN', vaultKey: 'private-token']]],
+]
+
+def configuration = [vaultUrl: '<vault_url>',  vaultCredentialId: 'approle-creds2', skipSslVerification: 'true']
+                      
+pipeline {
+    agent any
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+        disableConcurrentBuilds()
+    }
+    stages{   
+      stage('Vault') {
+        steps {
+          withVault([configuration: configuration, vaultSecrets: secrets]) {
+            sh 'eval "env | grep PRIVATE > private_token.txt"'
+          }
+        }  
+      }
+    }
+}
