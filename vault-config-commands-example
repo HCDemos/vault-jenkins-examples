@@ -1,0 +1,52 @@
+# Vault with Jenkins Setup for Plugin & API Pipeline Examples 
+# For demo purposes perform the below as root or a 
+# previously configured admin id with proper permissions
+# 
+
+# enable approle at default path & create new approle id
+vault auth enable approle
+
+# we assume that the secret(s) to be read by Jenkins are 
+# kv-v2 secrets located at the relative path kv-v2/jenkinsnew/github
+# 
+vault policy write jenkins -<<EOF
+path "secret/data/kv-v2/jenkinsnew/github/*" {
+  capabilities = [ "read", "update", "list" ]
+}
+EOF
+
+# create role named jenkins with jenkins policy attached
+vault write auth/approle/role/jenkins token_policies="jenkins" \
+    token_ttl=1h token_max_ttl=4h
+
+# read the role config to verify it
+vault read auth/approle/role/jenkins
+
+# retrieve the role_id for jenkins role
+vault read auth/approle/role/jenkins/role-id
+
+# ask Vault to create a secret_id for the jenkins role
+# if we like we can limit the ttl or number of uses for 
+# this secret_id by supplying parameters, but for simplicity
+# we'll just use the defaults
+vault write -force auth/approle/role/jenkins/secret-id
+
+# login using approle auth method and jenkins 
+# role_id & secret_id from above 
+
+vault write auth/approle/login role_id="<role_id>" \
+    secret_id="<secret_id>"
+
+# you should get a token from the above command 
+# and it should automatically match the env variable
+# VAULT_TOKEN - if not you can set it using
+# export VAULT_TOKEN=<token>
+# also the token should have the policy jenkins attached
+
+# read the secret as approle jenkins
+# (because you're using the token from above) 
+
+vault kv get kv-v2/jenkinsnew/github
+
+# if this works than the Jenkins pipeline examples should also work for this 
+# approle role_id and secret_id
