@@ -1,0 +1,29 @@
+pipeline {
+agent any
+    environment {
+        VAULT_ADDR="<vault_url>"
+        ROLE_ID="<role_id>"
+        SECRET_ID="<secret_id>"
+        SECRETS_PATH="kv-v2/jenkinsnew/github"
+        VAULT_SKIP_VERIFY=true
+    }
+
+    stages {     
+      stage('Stage 0') {
+          steps {
+            sh '''
+            export PATH=/usr/local/bin:${PATH}
+            # AppRole Auth request
+            curl -k -v --request POST \
+                --data "{ \\"role_id\\": \\"$ROLE_ID\\", \\"secret_id\\": \\"$SECRET_ID\\" }" ${VAULT_ADDR}/v1/auth/approle/login > login.json
+              
+
+            export VAULT_TOKEN=$(cat login.json | jq -r .auth.client_token)
+            # Secret read request
+            curl -k -v --header "X-Vault-Token: $VAULT_TOKEN" \
+              ${VAULT_ADDR}/v1/${SECRETS_PATH} | jq .
+            '''
+          }
+      }
+    }
+}
